@@ -99,6 +99,11 @@ class Slider(Control):
     self.track.blit(self.x, self.y)
     self.handle.blit(self.value_to_coordinate(self.value), self.y)
 
+  def on_resize(self, width):
+    self.width = width
+    self.track = image.SolidColorImagePattern(
+      Slider.TRACK_COLOR).create_image(self.width, self.height)
+
   def on_mouse_press(self, x, y, button, modifiers):
     self.value = self.coordinate_to_value(x)
     self.capture_events()
@@ -115,12 +120,15 @@ class Slider(Control):
 Slider.register_event_type('on_begin_scroll')
 Slider.register_event_type('on_end_scroll')
 Slider.register_event_type('on_change')
+Slider.register_event_type('on_resize')
     
     
 
 class RiffPlayer(window.Window):
-  CONTROL_HEIGHT = 40
-  BUTTON_PADDING = 5
+  CONTROL_PANEL_HEIGHT = 40
+  SLIDER_HEIGHT = 10
+  PADDING = 5
+  BUTTON_WIDTH = 43
 
   def __init__(self, video, audio):
     super(RiffPlayer, self).__init__(caption='RiffPlayer %s' % __version__,
@@ -132,7 +140,7 @@ class RiffPlayer(window.Window):
     self.video_player.push_handlers(self)
     self.audio_player.push_handlers(self)
     self.video_x = 0
-    self.video_y = 0 + self.CONTROL_HEIGHT
+    self.video_y = 0 + self.CONTROL_PANEL_HEIGHT
     self.play_button = ImageButton(self,
                                    resource.image('play.png'),
                                    resource.image('play-active.png'))
@@ -142,18 +150,28 @@ class RiffPlayer(window.Window):
                                    resource.image('sync-active.png'))
     self.sync_button.on_press = lambda: self.toggle_synced()
     self.play_button.set_pos(0,0)
-    self.sync_button.set_pos(0 + self.play_button.width + self.BUTTON_PADDING, 0)
-    self.video_slider = Slider(self, 400)
-    self.video_slider.set_pos(0 + (self.play_button.width + self.BUTTON_PADDING) * 2,
-                              0)
+    self.play_button.active = lambda: self.video_player.playing
+    self.sync_button.set_pos(0 + self.BUTTON_WIDTH + self.PADDING, 0)
+    self.video_slider = Slider(self, self.width - self.BUTTON_WIDTH * 2)
+    self.video_slider.set_pos(0 + (self.BUTTON_WIDTH + self.PADDING) * 2,
+                              self.SLIDER_HEIGHT + self.PADDING)
     self.video_slider.on_begin_scroll = lambda: self.pause_all()
     self.video_slider.on_end_scroll = lambda: self.play_all()
     self.video_slider.on_change = lambda value: self.seek(self.video_player,
                                                           self.audio_player,
                                                           value)
+    self.audio_slider = Slider(self, self.width - self.BUTTON_WIDTH * 2)
+    self.audio_slider.set_pos(0 + (self.BUTTON_WIDTH + self.PADDING) * 2,
+                              self.PADDING)
+    self.audio_slider.on_begin_scroll = lambda: self.pause_all()
+    self.audio_slider.on_end_scroll = lambda: self.play_all()
+    self.audio_slider.on_change = lambda value: self.seek(self.audio_player,
+                                                          self.video_player,
+                                                          value)
     self.controls = [self.play_button,
                      self.sync_button,
-                     self.video_slider]
+                     self.video_slider,
+                     self.audio_slider]
 
   def pause_all(self):
     self.video_player.pause()
@@ -191,13 +209,17 @@ class RiffPlayer(window.Window):
     return width, height
     
   def set_default_video_size(self):
-      self.set_size(*self.get_video_size())
-      self.video_slider.max = self.video_player.source.duration
+    self.set_size(*self.get_video_size())
+    self.video_slider.max = self.video_player.source.duration
+    self.audio_slider.max = self.audio_player.source.duration
 
   def on_resize(self, width, height):
     super(RiffPlayer, self).on_resize(width, height)
     self.video_width = width 
-    self.video_height = height - self.CONTROL_HEIGHT
+    self.video_height = height - self.CONTROL_PANEL_HEIGHT
+    slider_width = width - (self.BUTTON_WIDTH + self.PADDING) * 2
+    self.video_slider.on_resize(slider_width)
+    self.audio_slider.on_resize(slider_width)
 
   def on_mouse_press(self, x, y, button, modifiers):
     for control in self.controls:
@@ -214,8 +236,13 @@ class RiffPlayer(window.Window):
     for control in self.controls:
       control.draw()
 
+  def update_controls(self):
+    self.video_slider.value = self.video_player.time
+    self.audio_slider.value = self.audio_player.time
+
   def on_draw(self):
     self.draw_media()
+    self.update_controls()
     self.draw_controls()
     
 
@@ -235,10 +262,8 @@ if __name__ == '__main__':
   video.queue(video_stream)
   riff.queue(audio_stream)
   
-  video.volume = 0.3
+  video.volume = 0.6
   riff.volume = 1.0
-  video.play()
-  riff.play()
   player.set_default_video_size()
   player.set_visible(True)
 
