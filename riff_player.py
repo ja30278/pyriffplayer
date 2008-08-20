@@ -236,13 +236,8 @@ class RiffPlayer(window.Window):
     for control in self.controls:
       control.draw()
 
-  def update_controls(self):
-    self.video_slider.value = self.video_player.time
-    self.audio_slider.value = self.audio_player.time
-
   def on_draw(self):
     self.draw_media()
-    self.update_controls()
     self.draw_controls()
     
 
