@@ -85,7 +85,7 @@ class Slider(Control):
     self.height = self.handle.height 
     self.track = image.SolidColorImagePattern(
         Slider.TRACK_COLOR).create_image(self.width, self.height)
-    self.value = None
+    self.value = min_val 
 
   def coordinate_to_value(self, x):
     return float(x - self.x) / self.width * (self.max - self.min) + self.min
@@ -94,8 +94,6 @@ class Slider(Control):
     return float(value - self.min) / (self.max - self.min) * self.width + self.x
   
   def draw(self):
-    if not self.value:
-      self.value = self.x
     self.track.blit(self.x, self.y)
     self.handle.blit(self.value_to_coordinate(self.value), self.y)
 
@@ -111,7 +109,8 @@ class Slider(Control):
     self.dispatch_event('on_change', self.value)
 
   def on_mouse_drag(self, x, y, dx, dy, buttons, modifiers):
-   self.value = min(max(self.coordinate_to_value(x), self.min), self.max)
+   value = min(max(self.coordinate_to_value(x), self.min), self.max)
+   self.dispatch_event('on_change', value)
 
   def on_mouse_release(self, x, y, button, modifiers):
     self.release_events()
@@ -150,7 +149,6 @@ class RiffPlayer(window.Window):
                                    resource.image('sync-active.png'))
     self.sync_button.on_press = lambda: self.toggle_synced()
     self.play_button.set_pos(0,0)
-    self.play_button.active = lambda: self.video_player.playing
     self.sync_button.set_pos(0 + self.BUTTON_WIDTH + self.PADDING, 0)
     self.video_slider = Slider(self, self.width - self.BUTTON_WIDTH * 2)
     self.video_slider.set_pos(0 + (self.BUTTON_WIDTH + self.PADDING) * 2,
@@ -176,16 +174,19 @@ class RiffPlayer(window.Window):
   def pause_all(self):
     self.video_player.pause()
     self.audio_player.pause()
+    self.play_button.active = False
   
   def play_all(self):
     self.video_player.play()
     self.audio_player.play()
+    self.play_button.active = True
 
   def seek(self, player, sync_player, value):
     if self.synced:
       offset = value - player.time
       sync_player.seek(sync_player.time + offset)
     player.seek(value)
+    self.update_controls()
        
   def toggle_playback_all(self):
     if self.video_player.playing or self.audio_player.playing:
@@ -236,6 +237,10 @@ class RiffPlayer(window.Window):
     for control in self.controls:
       control.draw()
 
+  def update_controls(self):
+    self.video_slider.value = self.video_player.time
+    self.audio_slider.value = self.audio_player.time
+
   def on_draw(self):
     self.draw_media()
     self.draw_controls()
@@ -257,7 +262,7 @@ if __name__ == '__main__':
   video.queue(video_stream)
   riff.queue(audio_stream)
   
-  video.volume = 0.6
+  video.volume = 0.5
   riff.volume = 1.0
   player.set_default_video_size()
   player.set_visible(True)
