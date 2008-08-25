@@ -12,7 +12,8 @@ from pyglet import media
 from pyglet import resource
 from pyglet import window
 
-_RESOURCE_PATHS = ['resources']
+resource.path.append('res')
+resource.reindex()
 
 class Control(event.EventDispatcher):
 
