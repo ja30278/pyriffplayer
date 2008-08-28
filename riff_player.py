@@ -28,16 +28,25 @@ __author__ = 'Jon Allie (jon@jonallie.com)'
 __version__ = '.1'
 
 import sys
+import time
 
 from pyglet import app
 from pyglet import event
 from pyglet import image
 from pyglet import media
 from pyglet import resource
+from pyglet import text
 from pyglet import window
 
 resource.path.append('res')
 resource.reindex()
+
+def centered_label(label_text, width, height):
+  return text.Label(label_text,
+                    font_name='Times New Roman',
+                    font_size=36,
+                    x=width//2, y=height//2,
+                    anchor_x='center', anchor_y='center')
 
 class Control(event.EventDispatcher):
 
@@ -128,17 +137,19 @@ class Slider(Control):
       Slider.TRACK_COLOR).create_image(self.width, self.height)
 
   def on_mouse_press(self, x, y, button, modifiers):
-    self.value = self.coordinate_to_value(x)
+    value = self.coordinate_to_value(x)
     self.capture_events()
     self.dispatch_event('on_begin_scroll')
-    self.dispatch_event('on_change', self.value)
+    self.dispatch_event('on_change', value)
 
   def on_mouse_drag(self, x, y, dx, dy, buttons, modifiers):
    value = min(max(self.coordinate_to_value(x), self.min), self.max)
    self.dispatch_event('on_change', value)
 
   def on_mouse_release(self, x, y, button, modifiers):
+    value = self.coordinate_to_value(x)
     self.release_events()
+    self.dispatch_event('on_change', value)
     self.dispatch_event('on_end_scroll')
 
 Slider.register_event_type('on_begin_scroll')
@@ -165,6 +176,7 @@ class RiffPlayer(window.Window):
     self.audio_player.push_handlers(self)
     self.video_x = 0
     self.video_y = 0 + self.CONTROL_PANEL_HEIGHT
+    self.overlay = None
     self.play_button = ImageButton(self,
                                    resource.image('play.png'),
                                    resource.image('play-active.png'))
@@ -247,10 +259,38 @@ class RiffPlayer(window.Window):
     self.video_slider.on_resize(slider_width)
     self.audio_slider.on_resize(slider_width)
 
+  def on_key_press(self, symbol, modifiers):
+    if symbol == window.key.UP:
+      self.video_player.volume = min(self.video_player.volume + .1, 1.0) 
+      self.dispatch_event('on_video_volume_change')
+    elif symbol == window.key.DOWN:
+      self.video_player.volume = max(self.video_player.volume - .1, 0.0) 
+      self.dispatch_event('on_video_volume_change')
+    elif symbol == window.key.RIGHT:
+      self.audio_player.volume = min(self.audio_player.volume + .1, 1.0)
+      self.dispatch_event('on_audio_volume_change')
+    elif symbol == window.key.LEFT:
+      self.audio_player.volume = max(self.audio_player.volume - .1, 0.0) 
+      self.dispatch_event('on_audio_volume_change')
+    elif symbol == window.key.SPACE:
+      self.toggle_playback_all()
+
   def on_mouse_press(self, x, y, button, modifiers):
     for control in self.controls:
       if control.hit_test(x, y):
         control.on_mouse_press(x, y, button, modifiers)
+
+  def on_video_volume_change(self):
+    label = centered_label('Video Vol:%0.1f' %  self.video_player.volume,
+                           self.width,
+                           self.height)
+    self.add_overlay(label, 2)
+
+  def on_audio_volume_change(self):
+    label = centered_label('Audio Vol:%0.1f' % self.audio_player.volume,
+                           self.width,
+                           self.height)
+    self.add_overlay(label, 2)
 
   def draw_media(self):
     self.video_player.get_texture().blit(self.video_x,
@@ -258,9 +298,21 @@ class RiffPlayer(window.Window):
                                          width=self.video_width,
                                          height=self.video_height)
 
+  def add_overlay(self, element, duration):
+    self.overlay = (element, time.time() + duration)
+
   def draw_controls(self):
     for control in self.controls:
       control.draw()
+
+  def draw_overlay(self):
+    if self.overlay is None:
+      return
+    overlay, expire  = self.overlay
+    if time.time() < expire:
+      overlay.draw()
+        
+        
 
   def update_controls(self):
     self.video_slider.value = self.video_player.time
@@ -269,7 +321,10 @@ class RiffPlayer(window.Window):
   def on_draw(self):
     self.draw_media()
     self.draw_controls()
+    self.draw_overlay()
     
+RiffPlayer.register_event_type('on_video_volume_change')
+RiffPlayer.register_event_type('on_audio_volume_change')
 
 if __name__ == '__main__':
 
@@ -287,7 +342,7 @@ if __name__ == '__main__':
   video.queue(video_stream)
   riff.queue(audio_stream)
   
-  video.volume = 0.5
+  video.volume = 0.9
   riff.volume = 1.0
   player.set_default_video_size()
   player.set_visible(True)
