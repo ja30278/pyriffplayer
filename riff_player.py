@@ -312,8 +312,6 @@ class RiffPlayer(window.Window):
     if time.time() < expire:
       overlay.draw()
         
-        
-
   def update_controls(self):
     self.video_slider.value = self.video_player.time
     self.audio_slider.value = self.audio_player.time
