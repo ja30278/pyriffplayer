@@ -87,7 +87,7 @@ WHERE vf.Hash = ? AND af.Hash = ?
 
 class RiffDatabase(object):
   
-  def __init__(self, path, overwrite=True):
+  def __init__(self, path, overwrite=False):
     self.path = path
     self.overwrite = overwrite
     self.con = self.open_db(self.path)
