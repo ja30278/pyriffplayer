@@ -97,12 +97,18 @@ class RiffPlayer(window.Window):
                                   font_size=12,
                                   x=self.audio_slider.x - self.LABEL_WIDTH,
                                   y=self.audio_slider.y)
+    self.video_timer = text.Label('%3.2f' % (self.video_player.time,),
+                                  font_name='Times New Roman',
+                                  font_size=10,
+                                  x=self.width - self.LABEL_WIDTH - self.PADDING,
+                                  y=self.video_slider.y)
     self.controls = [self.play_button,
                      self.sync_button,
                      self.video_slider,
                      self.audio_slider]
     self.labels = [self.audio_label,
-                   self.video_label]
+                   self.video_label,
+                   self.video_timer]
 
   def _get_slider_width(self):
     return(self.width - (self.BUTTON_WIDTH + self.PADDING) * 8) 
@@ -159,10 +165,23 @@ class RiffPlayer(window.Window):
 
   def on_resize(self, width, height):
     super(RiffPlayer, self).on_resize(width, height)
-    self.video_width = width 
-    self.video_height = height - self.CONTROL_PANEL_HEIGHT
+    video_width, video_height = self.get_video_size()
+    if video_width == 0 or video_height == 0:
+      return
+    height -= self.CONTROL_PANEL_HEIGHT
+    display_aspect = width / float(height)
+    video_aspect = video_width / float(video_height)
+    if video_aspect > display_aspect:
+      self.video_width = width 
+      self.video_height = width / video_aspect
+    else:
+      self.video_height = height
+      self.video_width = height * video_aspect
+    self.video_x = (width - self.video_width) / 2
+    self.video_y = (height - self.video_height) / 2 + self.CONTROL_PANEL_HEIGHT
     self.video_slider.on_resize(self._get_slider_width())
     self.audio_slider.on_resize(self._get_slider_width())
+    self.video_timer.x = self.width - self.LABEL_WIDTH - self.PADDING
 
   def on_key_press(self, symbol, modifiers):
     if symbol == window.key.UP:
@@ -226,6 +245,7 @@ class RiffPlayer(window.Window):
   
   def update_controls(self):
     self.video_slider.value = self.video_player.time
+    self.video_timer.text = '%s' % (self.video_player.time,)
     self.audio_slider.value = self.audio_player.time
     self.sync_button.active = self.synced
     self.play_button.active = self.video_player.playing or self.audio_player.playing
