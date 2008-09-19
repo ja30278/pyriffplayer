@@ -44,6 +44,9 @@ import gui_lib
 resource.path.append('res')
 resource.reindex()
 
+def usage():
+  print '%s -v [video] -r [riff] [-d riffdb]' % sys.argv[0]
+
 
 class RiffPlayer(window.Window):
   CONTROL_PANEL_HEIGHT = 50
@@ -87,31 +90,41 @@ class RiffPlayer(window.Window):
     self.audio_slider.on_begin_scroll = lambda: self.pause_all()
     self.audio_slider.on_end_scroll = lambda: self.play_all()
     self.audio_slider.on_change = self.audio_seek
-    self.video_label = text.Label('Video',
-                                  font_name='Bitstream Charter',
-                                  font_size=12,
-                                  x=self.video_slider.x - self.LABEL_WIDTH,
-                                  y=self.video_slider.y)
-    self.audio_label = text.Label('Riff',
-                                  font_name='Inconsolata',
-                                  font_size=12,
-                                  x=self.audio_slider.x - self.LABEL_WIDTH,
-                                  y=self.audio_slider.y)
-    self.video_timer = text.Label('%3.2f' % (self.video_player.time,),
-                                  font_name='Times New Roman',
+    self.video_label = text.Label('VIDEO',
+                                  font_name='Tahoma',
                                   font_size=10,
+                                  bold=True,
+                                  anchor_x = 'right',
+                                  x=self.video_slider.x - self.PADDING,
+                                  y=self.video_slider.y)
+    self.audio_label = text.Label('RIFF',
+                                  font_name='Tahoma',
+                                  font_size=10,
+                                  bold=True,
+                                  anchor_x = 'right',
+                                  x=self.audio_slider.x - self.PADDING,
+                                  y=self.audio_slider.y)
+    self.video_timer = text.Label('%3.2f' % (self.video_player.time/60,),
+                                  font_name='Times New Roman',
+                                  font_size=12,
                                   x=self.width - self.LABEL_WIDTH - self.PADDING,
                                   y=self.video_slider.y)
+    self.audio_timer = text.Label('%3.2f' % (self.audio_player.time/60,),
+                                  font_name='Times New Roman',
+                                  font_size=12,
+                                  x=self.width - self.LABEL_WIDTH - self.PADDING,
+                                  y=self.audio_slider.y)
     self.controls = [self.play_button,
                      self.sync_button,
                      self.video_slider,
                      self.audio_slider]
     self.labels = [self.audio_label,
                    self.video_label,
-                   self.video_timer]
+                   self.video_timer,
+                   self.audio_timer]
 
   def _get_slider_width(self):
-    return(self.width - (self.BUTTON_WIDTH + self.PADDING) * 8) 
+    return(self.width - (self.BUTTON_WIDTH + self.PADDING) * 6) 
 
   def pause_all(self):
     self.video_player.pause()
@@ -182,6 +195,7 @@ class RiffPlayer(window.Window):
     self.video_slider.on_resize(self._get_slider_width())
     self.audio_slider.on_resize(self._get_slider_width())
     self.video_timer.x = self.width - self.LABEL_WIDTH - self.PADDING
+    self.audio_timer.x = self.width - self.LABEL_WIDTH - self.PADDING
 
   def on_key_press(self, symbol, modifiers):
     if symbol == window.key.UP:
@@ -244,13 +258,15 @@ class RiffPlayer(window.Window):
       overlay.draw()
   
   def update_controls(self):
+    self.video_timer.text = '%3.2f' % (self.video_player.time/60,)
+    self.audio_timer.text = '%3.2f' % (self.audio_player.time/60,)
     self.video_slider.value = self.video_player.time
-    self.video_timer.text = '%s' % (self.video_player.time,)
     self.audio_slider.value = self.audio_player.time
     self.sync_button.active = self.synced
     self.play_button.active = self.video_player.playing or self.audio_player.playing
 
   def on_draw(self):
+    self.clear()
     self.draw_media()
     self.draw_controls()
     self.draw_labels()
