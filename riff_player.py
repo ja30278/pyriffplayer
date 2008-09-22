@@ -25,7 +25,7 @@ OTHER DEALINGS IN THE SOFTWARE.
 """
 
 __author__ = 'Jon Allie (jon@jonallie.com)'
-__version__ = '.1'
+__version__ = '.3'
 
 import getopt
 import sys
@@ -113,12 +113,12 @@ class RiffPlayer(window.Window):
     self.video_timer = text.Label('%3.2f' % (self.video_player.time/60,),
                                   font_name='Times New Roman',
                                   font_size=12,
-                                  x=self.width - self.LABEL_WIDTH - self.PADDING,
+                                  x=self.video_slider.x + self.video_slider.width + self.PADDING,
                                   y=self.video_slider.y)
     self.audio_timer = text.Label('%3.2f' % (self.audio_player.time/60,),
                                   font_name='Times New Roman',
                                   font_size=12,
-                                  x=self.width - self.LABEL_WIDTH - self.PADDING,
+                                  x=self.audio_slider.x + self.audio_slider.width + self.PADDING,
                                   y=self.audio_slider.y)
     self.controls = [self.play_button,
                      self.sync_button,
@@ -205,8 +205,8 @@ class RiffPlayer(window.Window):
     self.video_y = (height - self.video_height) / 2 + self.CONTROL_PANEL_HEIGHT
     self.video_slider.on_resize(self._get_slider_width())
     self.audio_slider.on_resize(self._get_slider_width())
-    self.video_timer.x = self.width - self.LABEL_WIDTH * 2
-    self.audio_timer.x = self.width - self.LABEL_WIDTH * 2
+    self.video_timer.x = self.video_slider.x + self.video_slider.width + self.PADDING
+    self.audio_timer.x = self.audio_slider.x + self.audio_slider.width + self.PADDING
     self.save_offset_button.set_pos(self.width - self.LABEL_WIDTH)
 
   def on_key_press(self, symbol, modifiers):
