@@ -47,6 +47,9 @@ resource.reindex()
 def usage():
   print '%s -v [video] -r [riff] [-d riffdb]' % sys.argv[0]
 
+def _format_timestamp(secs):
+  """Convert seconds to a string showing hours, minutes, and seconds."""
+  return '%.2d:%.2d:%.2d' % (secs//3600,(secs%3600)//60, secs%60)
 
 class RiffPlayer(window.Window):
   CONTROL_PANEL_HEIGHT = 50
@@ -110,12 +113,12 @@ class RiffPlayer(window.Window):
                                   anchor_x = 'right',
                                   x=self.audio_slider.x - self.PADDING,
                                   y=self.audio_slider.y)
-    self.video_timer = text.Label('%3.2f' % (self.video_player.time/60,),
+    self.video_timer = text.Label(_format_timestamp(self.video_player.time),
                                   font_name='Times New Roman',
                                   font_size=12,
                                   x=self.video_slider.x + self.video_slider.width + self.PADDING,
                                   y=self.video_slider.y)
-    self.audio_timer = text.Label('%3.2f' % (self.audio_player.time/60,),
+    self.audio_timer = text.Label(_format_timestamp(self.audio_player.time),
                                   font_name='Times New Roman',
                                   font_size=12,
                                   x=self.audio_slider.x + self.audio_slider.width + self.PADDING,
@@ -270,8 +273,8 @@ class RiffPlayer(window.Window):
       overlay.draw()
   
   def update_controls(self):
-    self.video_timer.text = '%d' % self.video_player.time
-    self.audio_timer.text = '%d' % self.audio_player.time
+    self.video_timer.text = _format_timestamp(self.video_player.time)
+    self.audio_timer.text = _format_timestamp(self.audio_player.time)
     self.video_slider.value = self.video_player.time
     self.audio_slider.value = self.audio_player.time
     self.sync_button.active = self.synced
@@ -311,7 +314,7 @@ if __name__ == '__main__':
     elif o in ('-v', '--video'):
       video_file = a
     elif o in ('-o', '--offset'):
-      offset = int(a)
+      offset = float(a)
     elif o in ('-d', '--database'):
       riff_db = db_lib.RiffDatabase(a) 
 
