@@ -23,6 +23,7 @@ WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING
 FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR
 OTHER DEALINGS IN THE SOFTWARE.
 """
+# vim:expandtab:sw=2 ts=2
 
 __author__ = 'Jon Allie (jon@jonallie.com)'
 __version__ = '.3'
@@ -45,7 +46,16 @@ resource.path.append('res')
 resource.reindex()
 
 def usage():
-  print '%s -v [video] -r [riff] [-d riffdb]' % sys.argv[0]
+  print """\
+  Usage: %s [options] -v [video] -r [riff]
+   
+  Options:
+    -h:         print this help
+    -p:         dump hash values for audio and video files
+    -d db:      specify a database to use for saving/loading file offsets
+    -o offset:  specify a manual offset value (in seconds)
+
+  """% sys.argv[0]
 
 def _format_timestamp(secs):
   """Convert seconds to a string showing hours, minutes, and seconds."""
@@ -85,8 +95,7 @@ class RiffPlayer(window.Window):
                                                   resource.image('save.png'),
                                                   resource.image('save-active.png'))
     self.save_offset_button.set_pos(self.width - self.LABEL_WIDTH, self.PADDING)
-    self.save_offset_button.on_press = lambda: self.dispatch_event('on_offset_save',
-                                                                   self.offset)
+    self.save_offset_button.on_press = self._save_offset
     self.video_slider = gui_lib.Slider(self, self._get_slider_width()) 
     self.video_slider.set_pos(self.PADDING + (self.BUTTON_WIDTH + self.PADDING) * 4,
                               self.SLIDER_HEIGHT + self.PADDING)
@@ -185,6 +194,11 @@ class RiffPlayer(window.Window):
       height /= video_format.sample_aspect
     return width, height
     
+  def _save_offset(self):
+    if self.offset is None:
+      return
+    self.dispatch_event('on_offset_save', self.offset)
+ 
   def set_default_video_size(self):
     self.set_size(*self.get_video_size())
     self.video_slider.max = self.video_player.source.duration
@@ -296,19 +310,21 @@ if __name__ == '__main__':
 
   try:
     opts, args = getopt.getopt(sys.argv[1:],
-                               'hr:v:o:d:',
-                                ['help', 'riff=', 'video=', 'offset=','database='])
+                               'hpr:v:o:d:',
+                                ['help', 'printhashes', 'riff=', 'video=', 'offset=','database='])
   except getopt.GetoptError, e:
     print 'Option error: %s' % e
     usage()
     sys.exit(1)
 
-  video_file = audio_file = offset = riff_db = None
+  video_file = audio_file = offset = riff_db = print_only = None
 
   for o,a in opts:
     if o in ('-h', '--help'):
       usage()
       sys.exit(0)
+    elif o in ('-p', '--printhashes'):
+      print_only = True
     elif o in ('-r', '--riff'):
       audio_file = a
     elif o in ('-v', '--video'):
@@ -321,6 +337,11 @@ if __name__ == '__main__':
   if video_file is None or audio_file is None:
     usage()
     sys.exit(1)
+
+  if print_only:
+    print 'Video Hash: %s' % str(db_lib.RiffDatabase.calculate_hash(video_file))
+    print 'Audio Hash: %s' % str(db_lib.RiffDatabase.calculate_hash(audio_file))
+    sys.exit(0)
 
   video = media.Player()
   riff = media.Player()

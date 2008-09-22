@@ -101,7 +101,7 @@ class RiffDatabase(object):
       hash_val.update(open(filename).read(read_amount))
     except (IOError, OSError), e:
       raise OperationError(e)
-    return hash_val.digest()
+    return hash_val.hexdigest()
 
   def _get_file_id(self, path):
     hash_val = RiffDatabase.calculate_hash(path)
