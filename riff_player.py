@@ -68,16 +68,22 @@ class RiffPlayer(window.Window):
     self.video_x = 0
     self.video_y = 0 + self.CONTROL_PANEL_HEIGHT
     self.overlay = None
-    self.play_button = gui_lib.ImageButton(self,
-                                           resource.image('play.png'),
-                                           resource.image('play-active.png'))
-    self.play_button.on_press = self.toggle_playback_all
     self.sync_button = gui_lib.ImageButton(self,
                                            resource.image('sync.png'),
                                            resource.image('sync-active.png'))
     self.sync_button.on_press = lambda: self.toggle_synced()
-    self.play_button.set_pos(self.PADDING, self.PADDING)
     self.sync_button.set_pos(0 + self.BUTTON_WIDTH + self.PADDING * 2, self.PADDING)
+    self.play_button = gui_lib.ImageButton(self,
+                                           resource.image('play.png'),
+                                           resource.image('play-active.png'))
+    self.play_button.on_press = self.toggle_playback_all
+    self.play_button.set_pos(self.PADDING, self.PADDING)
+    self.save_offset_button = gui_lib.ImageButton(self,
+                                                  resource.image('save.png'),
+                                                  resource.image('save-active.png'))
+    self.save_offset_button.set_pos(self.width - self.LABEL_WIDTH, self.PADDING)
+    self.save_offset_button.on_press = lambda: self.dispatch_event('on_offset_save',
+                                                                   self.offset)
     self.video_slider = gui_lib.Slider(self, self._get_slider_width()) 
     self.video_slider.set_pos(self.PADDING + (self.BUTTON_WIDTH + self.PADDING) * 4,
                               self.SLIDER_HEIGHT + self.PADDING)
@@ -117,14 +123,15 @@ class RiffPlayer(window.Window):
     self.controls = [self.play_button,
                      self.sync_button,
                      self.video_slider,
-                     self.audio_slider]
+                     self.audio_slider,
+                     self.save_offset_button]
     self.labels = [self.audio_label,
                    self.video_label,
                    self.video_timer,
                    self.audio_timer]
 
   def _get_slider_width(self):
-    return(self.width - (self.BUTTON_WIDTH + self.PADDING) * 6) 
+    return(self.width - (self.BUTTON_WIDTH + self.PADDING) * 8) 
 
   def pause_all(self):
     self.video_player.pause()
@@ -134,13 +141,17 @@ class RiffPlayer(window.Window):
   def video_seek(self, value):
     self.video_player.seek(value)
     if self.synced and self.offset is not None:
-      self.audio_player.seek(self.video_player.time + self.offset) 
+      seek_val = max(0, min(self.audio_player.source.duration,
+                            self.video_player.time + self.offset)) 
+      self.audio_player.seek(seek_val)
     self.update_controls()
 
   def audio_seek(self, value):
     self.audio_player.seek(value)
     if self.synced and self.offset is not None:
-      self.video_player.seek(self.audio_player.time - self.offset)
+      seek_val = max(0, min(self.video_player.source.duration,
+                            self.audio_player.time - self.offset))
+      self.video_player.seek(seek_val)
     self.update_controls()
 
   def play_all(self):
@@ -194,8 +205,9 @@ class RiffPlayer(window.Window):
     self.video_y = (height - self.video_height) / 2 + self.CONTROL_PANEL_HEIGHT
     self.video_slider.on_resize(self._get_slider_width())
     self.audio_slider.on_resize(self._get_slider_width())
-    self.video_timer.x = self.width - self.LABEL_WIDTH - self.PADDING
-    self.audio_timer.x = self.width - self.LABEL_WIDTH - self.PADDING
+    self.video_timer.x = self.width - self.LABEL_WIDTH * 2
+    self.audio_timer.x = self.width - self.LABEL_WIDTH * 2
+    self.save_offset_button.set_pos(self.width - self.LABEL_WIDTH)
 
   def on_key_press(self, symbol, modifiers):
     if symbol == window.key.UP:
@@ -258,8 +270,8 @@ class RiffPlayer(window.Window):
       overlay.draw()
   
   def update_controls(self):
-    self.video_timer.text = '%3.2f' % (self.video_player.time/60,)
-    self.audio_timer.text = '%3.2f' % (self.audio_player.time/60,)
+    self.video_timer.text = '%d' % self.video_player.time
+    self.audio_timer.text = '%d' % self.audio_player.time
     self.video_slider.value = self.video_player.time
     self.audio_slider.value = self.audio_player.time
     self.sync_button.active = self.synced
@@ -273,20 +285,22 @@ class RiffPlayer(window.Window):
     self.draw_overlay()
     
 RiffPlayer.register_event_type('on_video_volume_change')
-RiffPlayer.register_event_type('on_audio_volume_change')
+RiffPlayer.register_event_type('on_audio_volume_change') 
+RiffPlayer.register_event_type('on_offset_save')
+
 
 if __name__ == '__main__':
 
   try:
     opts, args = getopt.getopt(sys.argv[1:],
-                               'hr:v:d:',
-                                ['help', 'riff=', 'video=', 'database='])
+                               'hr:v:o:d:',
+                                ['help', 'riff=', 'video=', 'offset=','database='])
   except getopt.GetoptError, e:
     print 'Option error: %s' % e
     usage()
     sys.exit(1)
 
-  video_file = audio_file = riff_db = None
+  video_file = audio_file = offset = riff_db = None
 
   for o,a in opts:
     if o in ('-h', '--help'):
@@ -296,8 +310,10 @@ if __name__ == '__main__':
       audio_file = a
     elif o in ('-v', '--video'):
       video_file = a
+    elif o in ('-o', '--offset'):
+      offset = int(a)
     elif o in ('-d', '--database'):
-      riff_db = a
+      riff_db = db_lib.RiffDatabase(a) 
 
   if video_file is None or audio_file is None:
     usage()
@@ -305,6 +321,7 @@ if __name__ == '__main__':
 
   video = media.Player()
   riff = media.Player()
+  video.eos_action = riff.eos_action = media.Player.EOS_PAUSE
 
   video_stream = media.load(video_file)
   audio_stream = media.load(audio_file)
@@ -314,16 +331,24 @@ if __name__ == '__main__':
   video.volume = 0.9
   riff.volume = 1.0
 
-  offset = None
-  if riff_db is not None:
-    db = db_lib.RiffDatabase(riff_db)
-    offset = db.get_offset(video_file, audio_file)
+  if riff_db is not None and offset is None:
+    offset = riff_db.get_offset(video_file, audio_file)
     
   player = RiffPlayer(video, riff, offset)
   player.set_default_video_size()
+  if riff_db is not None:
+    player.on_offset_save = lambda offset: riff_db.add_offset(video_file, audio_file, offset)
 
+  #TODO: find a better way to handle this
+  if offset is not None:
+    # since sources are streamed, must play in order to seek
+    player.play_all()
+    if offset > 0: 
+      player.video_seek(0)
+    else:
+      player.audio_seek(0)
+    player.pause_all()
 
-    
   player.set_visible(True)
 
   app.run()

@@ -54,12 +54,53 @@ class Control(event.EventDispatcher):
   def release_events(self):
     self.parent.remove_handlers(self)
 
-  def set_pos(self, x, y):
-    self.x = x
-    self.y = y
+  def set_pos(self, x=None, y=None):
+    self.x = x or self.x
+    self.y = y or self.y
 
 
-class ImageButton(Control):
+class Button(Control):
+  
+  def on_mouse_press(self, x, y, button, modifiers):
+    self.capture_events()
+
+Button.register_event_type('on_press')
+
+class TextButton(Button):
+  PADDING = 5
+  
+  def __init__(self, parent, button_text, font_name='Times New Roman',
+               font_size=12):
+    super(TextButton, self).__init__(parent)
+    self.label = text.Label(button_text,
+                            font_name=font_name,
+                            font_size=font_size,
+                            anchor_x='center',
+                            anchor_y='center')
+    self.width = self.label.content_width + self.PADDING
+    self.height = self.label.content_height + self.PADDING
+
+  def draw(self):
+    self.label.draw()
+
+  def set_text(self, text):
+    self.label.text = text
+    self.width = self.label.content_width + self.PADDING
+    self.height = self.label.content_height + self.PADDING
+
+  def set_pos(self, x=None, y=None):
+    self.x = x or self.x
+    self.y = y or self.y
+    self.label.x = self.x
+    self.label.y = self.y
+
+  def on_mouse_release(self, x, y, button, modifiers):
+    self.release_events()
+    if self.hit_test(x, y):
+      self.dispatch_event('on_press')
+
+  
+class ImageButton(Button):
 
   def __init__(self, parent, image, active_image=None):
     """Initialize the image button.
@@ -90,8 +131,6 @@ class ImageButton(Control):
     if self.hit_test(x, y):
       self.active = self.active is False 
       self.dispatch_event('on_press')
-
-ImageButton.register_event_type('on_press') 
 
 
 class Slider(Control):
