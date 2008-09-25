@@ -95,7 +95,7 @@ class RiffDatabase(object):
 
   @staticmethod
   def calculate_hash(filename):
-    read_amount = 10485760  # 10 megs
+    read_amount = 26214400  # 25 megs
     hash_val = hashlib.md5()
     try:
       hash_val.update(open(filename).read(read_amount))

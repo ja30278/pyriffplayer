@@ -29,6 +29,7 @@ __author__ = 'Jon Allie (jon@jonallie.com)'
 __version__ = '.3'
 
 import getopt
+import optparse
 import sys
 import time
 
@@ -45,21 +46,11 @@ import gui_lib
 resource.path.append('res')
 resource.reindex()
 
-def usage():
-  print """\
-  Usage: %s [options] -v [video] -r [riff]
-   
-  Options:
-    -h:         print this help
-    -p:         dump hash values for audio and video files
-    -d db:      specify a database to use for saving/loading file offsets
-    -o offset:  specify a manual offset value (in seconds)
-
-  """% sys.argv[0]
 
 def _format_timestamp(secs):
   """Convert seconds to a string showing hours, minutes, and seconds."""
   return '%.2d:%.2d:%.2d' % (secs//3600,(secs%3600)//60, secs%60)
+
 
 class RiffPlayer(window.Window):
   CONTROL_PANEL_HEIGHT = 50
@@ -308,60 +299,53 @@ RiffPlayer.register_event_type('on_offset_save')
 
 if __name__ == '__main__':
 
-  try:
-    opts, args = getopt.getopt(sys.argv[1:],
-                               'hpr:v:o:d:',
-                                ['help', 'printhashes', 'riff=', 'video=', 'offset=','database='])
-  except getopt.GetoptError, e:
-    print 'Option error: %s' % e
-    usage()
-    sys.exit(1)
+  parser = optparse.OptionParser(version=__version__)
+  parser.add_option('-r', '--riff', dest='riff_file',
+                    metavar='FILE', help='Riff file')
+  parser.add_option('-v', '--video', dest='video_file',
+                    metavar='FILE', help='Video file')
+  parser.add_option('-o', '--offset', type='float', dest='offset',
+                    help='manual offset (in float seconds) between the riff file'
+                    ' and the video file (can be negative)')
+  parser.add_option('-d', '--database', dest='riff_db',
+                    metavar='FILE', help='Offset database file')
+  parser.add_option('-p', '--printhashes', action='store_true',
+                    dest='printhashes', default=False,
+                    help='print hash values of video and riff and exit')
 
-  video_file = audio_file = offset = riff_db = print_only = None
-
-  for o,a in opts:
-    if o in ('-h', '--help'):
-      usage()
-      sys.exit(0)
-    elif o in ('-p', '--printhashes'):
-      print_only = True
-    elif o in ('-r', '--riff'):
-      audio_file = a
-    elif o in ('-v', '--video'):
-      video_file = a
-    elif o in ('-o', '--offset'):
-      offset = float(a)
-    elif o in ('-d', '--database'):
-      riff_db = db_lib.RiffDatabase(a) 
-
-  if video_file is None or audio_file is None:
-    usage()
-    sys.exit(1)
-
-  if print_only:
-    print 'Video Hash: %s' % str(db_lib.RiffDatabase.calculate_hash(video_file))
-    print 'Audio Hash: %s' % str(db_lib.RiffDatabase.calculate_hash(audio_file))
+  (options, args) = parser.parse_args() 
+  if options.riff_file is None or options.video_file is None:
+    parser.error('Must specify both a video and riff file')
+  elif options.printhashes:
+    print 'Video Hash: %s' % str(db_lib.RiffDatabase.calculate_hash(options.video_file))
+    print 'Audio Hash: %s' % str(db_lib.RiffDatabase.calculate_hash(options.riff_file))
     sys.exit(0)
+
+  riff_db = options.riff_db and db_lib.RiffDatabase(options.riff_db)
 
   video = media.Player()
   riff = media.Player()
   video.eos_action = riff.eos_action = media.Player.EOS_PAUSE
 
-  video_stream = media.load(video_file)
-  audio_stream = media.load(audio_file)
+  video_stream = media.load(options.video_file)
+  audio_stream = media.load(options.riff_file)
 
   video.queue(video_stream)
   riff.queue(audio_stream)
   video.volume = 0.9
   riff.volume = 1.0
 
-  if riff_db is not None and offset is None:
-    offset = riff_db.get_offset(video_file, audio_file)
+  if riff_db and options.offset is None:
+    offset = riff_db.get_offset(options.video_file, options.riff_file)
+  elif options.offset:
+    offset = options.offset
     
   player = RiffPlayer(video, riff, offset)
   player.set_default_video_size()
-  if riff_db is not None:
-    player.on_offset_save = lambda offset: riff_db.add_offset(video_file, audio_file, offset)
+  if riff_db:
+    player.on_offset_save = lambda offset: riff_db.add_offset(options.video_file,
+                                                              options.riff_file,
+                                                              offset)
 
   #TODO: find a better way to handle this
   if offset is not None:
