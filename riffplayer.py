@@ -51,8 +51,9 @@ class RiffPlayerFrame(wx.Frame):
 
   def __init__(self, parent, id, title):
     """Initialize the main riff player frame."""
-    wx.Frame.__init__(self, parent, wx.ID_ANY, title, size = (550, 500))
+    wx.Frame.__init__(self, parent, wx.ID_ANY, title, size = (700, 500))
     self.Bind(wx.EVT_CLOSE, self.Destroy)
+    self.SetMinSize((700, 500))
 
     self.video_file = None
     self.video = None
@@ -89,6 +90,10 @@ class RiffPlayerFrame(wx.Frame):
     self.offset_timer = wx.StaticText(self, -1, 'Offset: 0.0')
     self.save_offset_button = wx.Button(self, -1, 'Save')
     self.save_offset_button.Disable()
+    self.video_volume_label = wx.StaticText(self, -1, 'Video Volume:')
+    self.video_volume_slider = wx.Slider(self, -1, 5, 0, 10)
+    self.riff_volume_label = wx.StaticText(self, -1, 'Riff Volume:')
+    self.riff_volume_slider = wx.Slider(self, -1, 5, 0, 10)
 
     controls1.Add(self.video_select_button, 0, wx.ALL, 5)
     controls1.Add(self.video_slider, 1, wx.ALL|wx.EXPAND, 5)
@@ -99,7 +104,11 @@ class RiffPlayerFrame(wx.Frame):
     controls3.Add(self.play_button, 0, wx.ALL, 5)
     controls3.Add(self.sync_button, 0, wx.ALL, 5)
     controls3.Add(self.offset_timer, 0, wx.ALL | wx.ALIGN_CENTRE, 5)
-    controls3.Add(self.save_offset_button, 0, wx.ALL | wx.ALIGN_RIGHT, 5)
+    controls3.Add(self.save_offset_button, 0, wx.ALL, 5)
+    controls3.Add(self.video_volume_label, 0, wx.ALL | wx.ALIGN_CENTRE, 5)
+    controls3.Add(self.video_volume_slider, 1, wx.ALL | wx.EXPAND, 5)
+    controls3.Add(self.riff_volume_label, 0, wx.ALL | wx.ALIGN_CENTRE, 5)
+    controls3.Add(self.riff_volume_slider, 1, wx.ALL | wx.EXPAND, 5)
     control_box.Add(controls1, 1, flag=wx.EXPAND)
     control_box.Add(controls2, 1, flag=wx.EXPAND)
     control_box.Add(controls3, 1, flag=wx.EXPAND)
@@ -117,6 +126,10 @@ class RiffPlayerFrame(wx.Frame):
     self.Bind(wx.EVT_BUTTON, self.OnSaveOffset, self.save_offset_button)
     self.Bind(wx.EVT_SLIDER, self.OnVideoSliderUpdate, self.video_slider)
     self.Bind(wx.EVT_SLIDER, self.OnRiffSliderUpdate, self.riff_slider)
+    self.Bind(wx.EVT_SLIDER, self.OnVideoVolumeSliderUpdate,
+              self.video_volume_slider)
+    self.Bind(wx.EVT_SLIDER, self.OnRiffVolumeSliderUpdate,
+              self.riff_volume_slider)
 
     self.Bind(wx.EVT_UPDATE_UI, self.OnUpdateUI)
     self.Bind(wx.EVT_IDLE, self.OnIdle)
@@ -167,7 +180,9 @@ class RiffPlayerFrame(wx.Frame):
     self.player = gst.Pipeline('player')
 
     self.riff = gst.element_factory_make('playbin', 'riff-pbin')
+    self.riff.set_property('volume', 5.0)
     self.video = gst.element_factory_make('playbin', 'video-pbin')
+    self.video.set_property('volume', 5.0)
 
     self.video_sink = gst.element_factory_make('autovideosink', 'video-sink')
     self.video.set_property('video-sink', self.video_sink)
@@ -208,6 +223,14 @@ class RiffPlayerFrame(wx.Frame):
       self._ApplyOffset()
     except Exception, e:
       logging.error('Error performing video slider sync: %s', e)
+
+  def OnVideoVolumeSliderUpdate(self, event):
+    volume = float(self.video_volume_slider.GetValue())
+    self.video.set_property('volume', volume)
+
+  def OnRiffVolumeSliderUpdate(self, event):
+    volume = float(self.riff_volume_slider.GetValue())
+    self.riff.set_property('volume', volume)
 
   def OnRiffSliderUpdate(self, event):
     pos = self.riff_slider.GetValue()
