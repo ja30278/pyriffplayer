@@ -99,7 +99,7 @@ class RiffDatabase(object):
     hash_val = hashlib.md5()
     try:
       hash_val.update(open(filename).read(read_amount))
-    except (IOError, OSError), e:
+    except (IOError, OSError, TypeError), e:
       raise OperationError(e)
     return hash_val.hexdigest()
 
