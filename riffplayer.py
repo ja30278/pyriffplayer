@@ -23,7 +23,9 @@ WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING
 FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR
 OTHER DEALINGS IN THE SOFTWARE.
 """
-# vim:expandtab:sw=2 ts=2
+
+__version__ = '0.2'
+GPL = __doc__
 
 import logging
 import os
@@ -49,9 +51,9 @@ class AudioFrame(wx.Frame):
 
 class RiffPlayerFrame(wx.Frame):
 
-  def __init__(self, parent, id, title):
+  def __init__(self, parent, title):
     """Initialize the main riff player frame."""
-    wx.Frame.__init__(self, parent, wx.ID_ANY, title, size = (700, 500))
+    wx.Frame.__init__(self, parent, wx.ID_ANY, title=title, size = (700, 500))
     self.Bind(wx.EVT_CLOSE, self.Destroy)
     self.SetMinSize((700, 500))
 
@@ -62,6 +64,7 @@ class RiffPlayerFrame(wx.Frame):
     self.synced = False
     self._sync_done = False
     self.offset = 0
+
 
     self._InitResources()
     self._InitControls()
@@ -77,7 +80,8 @@ class RiffPlayerFrame(wx.Frame):
       'locked': wx.Bitmap(os.path.join(RES_DIR, 'locked.png')),
       'unlocked': wx.Bitmap(os.path.join(RES_DIR, 'unlocked.png')),
       'save': wx.Bitmap(os.path.join(RES_DIR, 'document-save.png')),
-      'volume': wx.Bitmap(os.path.join(RES_DIR, 'audio-volume-high.png'))
+      'volume': wx.Bitmap(os.path.join(RES_DIR, 'audio-volume-high.png')),
+      'fullscreen': wx.Bitmap(os.path.join(RES_DIR, 'view-fullscreen.png'))
      }
 
   def _InitControls(self):
@@ -104,6 +108,9 @@ class RiffPlayerFrame(wx.Frame):
     self.riff_timer = wx.StaticText(self.control_panel, label=' 00:00:00')
     self.play_button = wx.BitmapButton(self.control_panel, bitmap=self.bmp['play'])
     self.stop_button = wx.BitmapButton(self.control_panel, bitmap=self.bmp['stop'])
+    self.fullscreen_button = wx.BitmapButton(self.control_panel,
+                                             bitmap=self.bmp['fullscreen'])
+    self.fullscreen_button.SetToolTip(wx.ToolTip('Toogle fullscreen'))
     self.sync_button = wx.BitmapButton(self.control_panel, bitmap=self.bmp['unlocked'])
     self.sync_button.SetToolTip(wx.ToolTip('Lock sync'))
     self.offset_button = wx.Button(self.control_panel, label='Offset: 0.0',
@@ -134,6 +141,7 @@ class RiffPlayerFrame(wx.Frame):
     controls2.Add(self.riff_timer, 0, wx.ALL, 5)
     controls3.Add(self.play_button, 0, wx.ALL, 5)
     controls3.Add(self.stop_button, 0, wx.ALL, 5)
+    controls3.Add(self.fullscreen_button, 0, wx.ALL, 5)
     controls3.Add(self.sync_button, 0, wx.ALL, 5)
     controls3.Add(self.save_offset_button, 0, wx.ALL, 5)
     controls3.Add(self.offset_button, 0, wx.ALL, 5)
@@ -155,6 +163,7 @@ class RiffPlayerFrame(wx.Frame):
 
     self.Bind(wx.EVT_BUTTON, self.OnPlayPause, self.play_button)
     self.Bind(wx.EVT_BUTTON, self.OnStop, self.stop_button)
+    self.Bind(wx.EVT_BUTTON, self.OnToggleFullscreen, self.fullscreen_button)
     self.Bind(wx.EVT_BUTTON, self.OnChooseRiff, self.riff_select_button)
     self.Bind(wx.EVT_BUTTON, self.OnChooseVideo, self.video_select_button)
     self.Bind(wx.EVT_BUTTON, self.OnToggleSync, self.sync_button)
@@ -177,24 +186,28 @@ class RiffPlayerFrame(wx.Frame):
     self.control_menu = wx.Menu()
     self.tools_menu = wx.Menu()
 
-    self.menu_video_select = wx.MenuItem(self.file_menu, -1, 'Select &Video')
-    self.menu_riff_select = wx.MenuItem(self.file_menu, -1, 'Select &Riff')
-    self.menu_db_select = wx.MenuItem(self.file_menu, -1, 'Select &Database')
+    self.menu_video_select = wx.MenuItem(self.file_menu, wx.ID_ANY, 'Select &Video')
+    self.menu_riff_select = wx.MenuItem(self.file_menu, wx.ID_ANY, '&Riff')
+    self.menu_db_select = wx.MenuItem(self.file_menu, wx.ID_ANY, '&Database')
     self.file_menu.AppendItem(self.menu_video_select)
     self.file_menu.AppendItem(self.menu_riff_select)
     self.file_menu.AppendItem(self.menu_db_select)
 
-    self.menu_play = wx.MenuItem(self.control_menu, -1, '&Play/Pause')
-    self.menu_sync = wx.MenuItem(self.control_menu, -1, '&Sync Lock')
+    self.menu_play = wx.MenuItem(self.control_menu, wx.ID_ANY, '&Play/Pause')
+    self.menu_sync = wx.MenuItem(self.control_menu, wx.ID_ANY, '&Sync Lock')
     self.control_menu.AppendItem(self.menu_play)
     self.control_menu.AppendItem(self.menu_sync)
 
-    self.menu_hashes = wx.MenuItem(self.tools_menu, -1, 'Show &Hashes')
-    self.menu_enter_offset = wx.MenuItem(self.tools_menu, -1, 'Enter &Offset')
-    self.menu_save_offset = wx.MenuItem(self.tools_menu, -1, '&Save Offset')
+    self.menu_hashes = wx.MenuItem(self.tools_menu, wx.ID_ANY, 'Show &Hashes')
+    self.menu_enter_offset = wx.MenuItem(self.tools_menu, wx.ID_ANY,
+                                         'Enter &Offset')
+    self.menu_save_offset = wx.MenuItem(self.tools_menu, wx.ID_ANY,
+                                        '&Save Offset')
+    self.menu_about = wx.MenuItem(self.tools_menu, wx.ID_ANY, '&About')
     self.tools_menu.AppendItem(self.menu_hashes)
     self.tools_menu.AppendItem(self.menu_enter_offset)
     self.tools_menu.AppendItem(self.menu_save_offset)
+    self.tools_menu.AppendItem(self.menu_about)
 
     self.menu_bar.Append(self.file_menu, '&File')
     self.menu_bar.Append(self.control_menu, '&Controls')
@@ -209,6 +222,7 @@ class RiffPlayerFrame(wx.Frame):
     self.Bind(wx.EVT_MENU, self.OnShowHash, self.menu_hashes)
     self.Bind(wx.EVT_MENU, self.OnEnterOffset, self.menu_enter_offset)
     self.Bind(wx.EVT_MENU, self.OnSaveOffset, self.menu_save_offset)
+    self.Bind(wx.EVT_MENU, self.OnAbout, self.menu_about)
 
 
   def Play(self):
@@ -247,6 +261,10 @@ class RiffPlayerFrame(wx.Frame):
 
   def OnStop(self, event):
     self.Stop()
+
+  def OnToggleFullscreen(self, event):
+    show = self.IsFullScreen() is False
+    self.ShowFullScreen(show)
 
   def OnRiffSliderUpdate(self, event):
     """Event handler for the riff position slider."""
@@ -411,6 +429,20 @@ class RiffPlayerFrame(wx.Frame):
     except Exception, e:
       logging.error('Error encountered obtaining postion/duration: %s', e)
       return
+
+  def OnAbout(self, event):
+    info = wx.AboutDialogInfo()
+    info.Name = 'pyRiffplayer, a syncing media player'
+    info.Version = __version__
+    info.Copyright = 'Copyright 2008, Jon Allie (jon@jonallie.com)'
+    info.Description = """
+    A media player capable of playing and synchonizing a second audio track, as well
+    as saving and automatically loading synchronization info.
+    """
+    info.WebSite = ('http://github.com/ja30278/pyriffplayer', 'Source repository')
+    info.Developers = ['Jon Allie (jon@jonallie.com)']
+    info.License = GPL
+    wx.AboutBox(info)
     
   def _ChooseFile(self, dirname='/', filter='*.*', mode=wx.OPEN):
     """Utility function for selecting a file.
@@ -467,7 +499,7 @@ class RiffPlayerFrame(wx.Frame):
     """Event handler for manualy entered offset."""
     offset = None
     dlg = wx.NumberEntryDialog(self, 'Enter offset (in milliseconds)', 'Offset',
-                               'Offset', 0, 0, 10800000)
+                               'Offset', self.offset, 0, 10800000)
     if dlg.ShowModal() == wx.ID_OK:
       offset = dlg.GetValue()
     dlg.Destroy()
@@ -482,7 +514,7 @@ class RiffPlayer(wx.App):
   """The riffplayer app class."""
 
   def OnInit(self):
-    frame = RiffPlayerFrame(None, -1, 'Riff Player')
+    frame = RiffPlayerFrame(None, title='Riff Player')
     frame.SetDbFile(DEFAULT_DB_FILE)
     frame.Show(True)
     frame.Centre()
