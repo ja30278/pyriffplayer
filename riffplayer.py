@@ -3,7 +3,7 @@
 Copyright (c) 2008 Jon Allie <jon@jonallie.com>
 
 Permission is hereby granted, free of charge, to any person
-obtaining a copy of this software and associated documentation
+Obtaining a copy of this software and associated documentation
 files (the "Software"), to deal in the Software without
 restriction, including without limitation the rights to use,
 copy, modify, merge, publish, distribute, sublicense, and/or sell
@@ -43,6 +43,10 @@ VIDEO_FILE_FILTER = '*.*'
 DEFAULT_DB_FILE = 'riffdb.sqlite'
 RES_DIR = 'res'
 
+# Sizing related constants
+_NO_RESIZE = 0
+_LINEAR_RESIZE = 1
+
 
 class AudioFrame(wx.Frame):
   """Separate audio frame."""
@@ -62,7 +66,6 @@ class RiffPlayerFrame(wx.Frame):
     self.db_file = None
     self.db = None
     self.synced = False
-    self._sync_done = False
     self.offset = 0
 
 
@@ -85,9 +88,12 @@ class RiffPlayerFrame(wx.Frame):
      }
 
   def _InitControls(self):
+    # The main video panel, defaulted to a black background
     self.video = wx.media.MediaCtrl(self)
     self.video.SetBackgroundColour('#000000')
     
+    # The riff audio is handled by a separate MediaCtl instance which
+    # is associated with its own frame
     audio_frame = AudioFrame(self, None, '')
     self.riff = wx.media.MediaCtrl(audio_frame)
 
@@ -98,26 +104,38 @@ class RiffPlayerFrame(wx.Frame):
     self.video_select_button = wx.BitmapButton(self.control_panel,
                                                bitmap=self.bmp['video'])
     self.video_select_button.SetToolTip(wx.ToolTip('Select video'))
+
     self.video_slider = wx.Slider(self.control_panel, value=0, minValue=0,
                                   maxValue=1000)
+
     self.video_timer = wx.StaticText(self.control_panel, label=' 00:00:00')
+
     self.riff_select_button = wx.BitmapButton(self.control_panel,
                                               bitmap=self.bmp['riff'])
     self.riff_select_button.SetToolTip(wx.ToolTip('Select riff'))
+
     self.riff_slider = wx.Slider(self.control_panel, value=0, minValue=0, maxValue=1000)
+
     self.riff_timer = wx.StaticText(self.control_panel, label=' 00:00:00')
+
     self.play_button = wx.BitmapButton(self.control_panel, bitmap=self.bmp['play'])
+    self.play_button.SetToolTip(wx.ToolTip('Start Playback'))
+
     self.stop_button = wx.BitmapButton(self.control_panel, bitmap=self.bmp['stop'])
+    self.stop_button.SetToolTip(wx.ToolTip('Stop Playback'))
+
     self.fullscreen_button = wx.BitmapButton(self.control_panel,
                                              bitmap=self.bmp['fullscreen'])
     self.fullscreen_button.SetToolTip(wx.ToolTip('Toogle fullscreen'))
+
     self.sync_button = wx.BitmapButton(self.control_panel, bitmap=self.bmp['unlocked'])
     self.sync_button.SetToolTip(wx.ToolTip('Lock sync'))
+
     self.offset_button = wx.Button(self.control_panel, label='Offset: 0.0',
                                    style=wx.NO_BORDER)
     self.save_offset_button = wx.BitmapButton(self.control_panel,
                                               bitmap=self.bmp['save'])
-    self.save_offset_button.SetToolTip(wx.ToolTip('Save offset'))
+    self.save_offset_button.SetToolTip(wx.ToolTip('Save Current Offset'))
     self.video_volume_label = wx.StaticText(self.control_panel, label='Video:')
     self.video_volume_bmp = wx.StaticBitmap(self.control_panel,
                                             bitmap=self.bmp['volume'])
@@ -133,31 +151,31 @@ class RiffPlayerFrame(wx.Frame):
     controls2 = wx.BoxSizer(wx.HORIZONTAL)
     controls3 = wx.BoxSizer(wx.HORIZONTAL)
     
-    controls1.Add(self.video_select_button, 0, wx.ALL, 5)
-    controls1.Add(self.video_slider, 1, wx.ALL|wx.EXPAND|wx.ALIGN_BOTTOM, 5)
-    controls1.Add(self.video_timer, 0, wx.ALL, 5)
-    controls2.Add(self.riff_select_button, 0, wx.ALL, 5)
-    controls2.Add(self.riff_slider, 1, wx.ALL|wx.EXPAND, 5)
-    controls2.Add(self.riff_timer, 0, wx.ALL, 5)
-    controls3.Add(self.play_button, 0, wx.ALL, 5)
-    controls3.Add(self.stop_button, 0, wx.ALL, 5)
-    controls3.Add(self.fullscreen_button, 0, wx.ALL, 5)
-    controls3.Add(self.sync_button, 0, wx.ALL, 5)
-    controls3.Add(self.save_offset_button, 0, wx.ALL, 5)
-    controls3.Add(self.offset_button, 0, wx.ALL, 5)
+    controls1.Add(self.video_select_button, _NO_RESIZE, wx.ALL, 5)
+    controls1.Add(self.video_slider, _LINEAR_RESIZE, wx.ALL|wx.EXPAND|wx.ALIGN_BOTTOM, 5)
+    controls1.Add(self.video_timer, _NO_RESIZE, wx.ALL, 5)
+    controls2.Add(self.riff_select_button, _NO_RESIZE, wx.ALL, 5)
+    controls2.Add(self.riff_slider, _LINEAR_RESIZE, wx.ALL|wx.EXPAND, 5)
+    controls2.Add(self.riff_timer, _NO_RESIZE, wx.ALL, 5)
+    controls3.Add(self.play_button, _NO_RESIZE, wx.ALL, 5)
+    controls3.Add(self.stop_button, _NO_RESIZE, wx.ALL, 5)
+    controls3.Add(self.fullscreen_button, _NO_RESIZE, wx.ALL, 5)
+    controls3.Add(self.sync_button, _NO_RESIZE, wx.ALL, 5)
+    controls3.Add(self.save_offset_button, _NO_RESIZE, wx.ALL, 5)
+    controls3.Add(self.offset_button, _NO_RESIZE, wx.ALL, 5)
     controls3.AddStretchSpacer()
-    controls3.Add(self.video_volume_label, 0, wx.ALL|wx.ALIGN_TOP, 5)
-    controls3.Add(self.video_volume_bmp, 0, wx.ALL, 5)
-    controls3.Add(self.video_volume_slider, 1, wx.ALL, 5)
-    controls3.Add(self.riff_volume_label, 0, wx.ALL, 5)
-    controls3.Add(self.riff_volume_bmp, 0, wx.ALL, 5)
-    controls3.Add(self.riff_volume_slider, 1, wx.ALL, 5)
-    control_box.Add(controls1, 1, flag=wx.EXPAND)
-    control_box.Add(controls2, 1, flag=wx.EXPAND)
-    control_box.Add(controls3, 1, flag=wx.EXPAND)
+    controls3.Add(self.video_volume_label, _NO_RESIZE, wx.ALL|wx.ALIGN_TOP, 5)
+    controls3.Add(self.video_volume_bmp, _NO_RESIZE, wx.ALL, 5)
+    controls3.Add(self.video_volume_slider, _LINEAR_RESIZE, wx.ALL, 5)
+    controls3.Add(self.riff_volume_label, _NO_RESIZE, wx.ALL, 5)
+    controls3.Add(self.riff_volume_bmp, _NO_RESIZE, wx.ALL, 5)
+    controls3.Add(self.riff_volume_slider, _LINEAR_RESIZE, wx.ALL, 5)
+    control_box.Add(controls1, _LINEAR_RESIZE, flag=wx.EXPAND)
+    control_box.Add(controls2, _LINEAR_RESIZE, flag=wx.EXPAND)
+    control_box.Add(controls3, _LINEAR_RESIZE, flag=wx.EXPAND)
     sizer = wx.BoxSizer(wx.VERTICAL)
-    sizer.Add(self.video, 1, flag=wx.EXPAND)
-    sizer.Add(self.control_panel, 0, flag=wx.EXPAND)
+    sizer.Add(self.video, _LINEAR_RESIZE, flag=wx.EXPAND)
+    sizer.Add(self.control_panel, _NO_RESIZE, flag=wx.EXPAND)
     self.SetSizer(sizer)
     self.Layout()
 
@@ -230,10 +248,8 @@ class RiffPlayerFrame(wx.Frame):
     self.video.Play()
     self.riff.Play()
     try:
-      vid_duration_milli = self.video.Length()
-      riff_duration_milli = self.riff.Length()
-      self.video_slider.SetMax(vid_duration_milli)
-      self.riff_slider.SetMax(riff_duration_milli)
+      self.video_slider.SetMax(self.video.Length())
+      self.riff_slider.SetMax(self.riff.Length())
     except Exception, e:
       logging.error('Error setting slider max values: %s', e)
 
@@ -366,7 +382,7 @@ class RiffPlayerFrame(wx.Frame):
     try:
       vid_position_milli = self.video.Tell()
       riff_duration_milli = self.riff.Length()
-      riff_position_milli = self.riff.Length()
+      riff_position_milli = self.riff.Tell()
       new_riff_pos = min(riff_duration_milli, max(vid_position_milli + self.offset, 0))
       # allow for tiny amounts of drift to minimize seeking
       if abs(new_riff_pos - riff_position_milli) > 100:
@@ -401,12 +417,8 @@ class RiffPlayerFrame(wx.Frame):
     
     Used to update non-gui background processes
     """
-    if not int(time.time()) % 5:
-      if not self._sync_done:
-        self._ApplyOffset()
-        self._sync_done = True
-    else:
-      self._sync_done = False
+    if not int(time.time()) % 10:
+      self._ApplyOffset()
 
   def OnUpdateUI(self, event):
     """Event handler for the EVT_UPDATE_UI psuedo-signal."""
