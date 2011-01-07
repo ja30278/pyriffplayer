@@ -42,7 +42,11 @@ elif sys.platform == 'win32':
           bundle_files=1
         )
       ),
-      windows=['riffplayer.py']
+      windows=[
+        dict(
+          script='riffplayer.py',
+          icon_resources=[(2, 'res/riffplayer.ico')])
+          ]
   )
 else:
   # untested

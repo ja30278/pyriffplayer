@@ -434,25 +434,29 @@ class RiffPlayerFrame(wx.Frame):
       self.riff_slider.Disable()
       if self.db:
         self.save_offset_button.Enable()
+      if self.sync_button.GetBitmapLabel() != self.bmp['locked']:
+        self.sync_button.SetBitmapLabel(self.bmp['locked'])
     else:
       self.riff_slider.Enable()
       self.save_offset_button.Disable()
+      if self.sync_button.GetBitmapLabel() != self.bmp['unlocked']:
+        self.sync_button.SetBitmapLabel(self.bmp['unlocked'])
     try:
       vid_position_milli = self.video.Tell()
       riff_position_milli = self.riff.Tell()
       if vid_position_milli >= 0:
         # blindly redrawing the labels on each update causes funky flashing
         # in windows
-        new_label = self._FormatTimestamp(vid_position_milli)
-        old_label = self.video_timer.GetLabel()
-        if new_label != old_label:
-          self.video_timer.SetLabel(new_label)
+        new_vid_label = self._FormatTimestamp(vid_position_milli)
+        old_vid_label = self.video_timer.GetLabel()
+        if new_vid_label != old_vid_label:
+          self.video_timer.SetLabel(new_vid_label)
           self.video_slider.SetValue(vid_position_milli)
       if riff_position_milli >= 0:
-        new_label = self._FormatTimestamp(riff_position_milli)
-        old_label = self.riff_timer.GetLabel()
-        if new_label != old_label:
-          self.riff_timer.SetLabel(new_label)
+        new_riff_label = self._FormatTimestamp(riff_position_milli)
+        old_riff_label = self.riff_timer.GetLabel()
+        if new_riff_label != old_riff_label:
+          self.riff_timer.SetLabel(new_riff_label)
           self.riff_slider.SetValue(riff_position_milli)
     except Exception, e:
       logging.error('Error encountered obtaining postion/duration: %s', e)
@@ -552,7 +556,7 @@ class RiffPlayer(wx.App):
     self.frame.SetDb(db)
 
 if __name__ == '__main__':
-  logging.basicConfig(level=logging.DEBUG)
+  logging.basicConfig(level=logging.WARNING)
   app = RiffPlayer(0)
   app.SetDb(db_lib.GetRiffDatabase())
   app.MainLoop()
