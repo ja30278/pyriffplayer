@@ -422,7 +422,10 @@ class RiffPlayerFrame(wx.Frame):
 
   def OnUpdateUI(self, event):
     """Event handler for the EVT_UPDATE_UI psuedo-signal."""
-    self.offset_button.SetLabel('Offset: %s' % self.offset)
+    new_offset_label = 'Offset: %s' % self.offset
+    old_offset_label = self.offset_button.GetLabel()
+    if new_offset_label != old_offset_label:
+      self.offset_button.SetLabel(new_offset_label)
     if self.video_file and self.riff_file:
       self.play_button.Enable()
     else:
@@ -446,10 +449,10 @@ class RiffPlayerFrame(wx.Frame):
           self.video_timer.SetLabel(new_label)
           self.video_slider.SetValue(vid_position_milli)
       if riff_position_milli >= 0:
-        new_label = self._FormatTimestamp(vid_position_milli)
+        new_label = self._FormatTimestamp(riff_position_milli)
         old_label = self.riff_timer.GetLabel()
         if new_label != old_label:
-          self.riff_timer.SetLabel(self._FormatTimestamp(riff_position_milli))
+          self.riff_timer.SetLabel(new_label)
           self.riff_slider.SetValue(riff_position_milli)
     except Exception, e:
       logging.error('Error encountered obtaining postion/duration: %s', e)
