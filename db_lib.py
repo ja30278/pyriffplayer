@@ -45,29 +45,6 @@ class Error(Exception):
 class OperationError(Error):
   """Operation Error."""
 
-_INIT_SQL = """
-DROP TABLE IF EXISTS `Offsets`;
-DROP INDEX IF EXISTS `Offsets-VideoAudio`;
-
-CREATE TABLE `Offsets`(
-  `VideoFileHash` TEXT NOT NULL,
-  `AudioFileHash` TEXT NOT NULL,
-  `Offset` REAL NOT NULL);
-
-CREATE UNIQUE INDEX `Offsets-VideoAudio`
-  ON `Offsets`(VideoFileHash,AudioFileHash);
-"""
-
-_ADD_OFFSET_SQL = """
-INSERT OR REPLACE INTO Offsets(VideoFileHash, AudioFileHash, Offset)
-  VALUES(?, ?, ?)
-"""
-
-_GET_OFFSET_SQL = """
-SELECT Offset
-FROM Offsets
-WHERE VideoFileHash = ? AND AudioFileHash = ?
-"""
 
 def calculate_hash(filename):
   hash_val = hashlib.md5()
@@ -79,6 +56,7 @@ def calculate_hash(filename):
 
 
 class RiffDatabase(object):
+  """Base class for a database mapping file hashes to offsets."""
   
   def add_offset(self, video_file, audio_file, offset):
     video_hash = calculate_hash(video_file)
@@ -94,6 +72,7 @@ class RiffDatabase(object):
 
 
 class RemoteRiffDatabase(RiffDatabase):
+  """A network-backed riff database."""
 
   def __init__(self, url):
     self.url = url
@@ -124,17 +103,44 @@ class RemoteRiffDatabase(RiffDatabase):
     
 
 class LocalRiffDatabase(RiffDatabase):
+  """A riff database backed by a local Sqlite file."""
+
+  _INIT_SQL = """
+  DROP TABLE IF EXISTS `Offsets`;
+  DROP INDEX IF EXISTS `Offsets-VideoAudio`;
+
+  CREATE TABLE `Offsets`(
+    `VideoFileHash` TEXT NOT NULL,
+    `AudioFileHash` TEXT NOT NULL,
+    `Offset` REAL NOT NULL);
+
+  CREATE UNIQUE INDEX `Offsets-VideoAudio`
+    ON `Offsets`(VideoFileHash,AudioFileHash);
+  """
+
+  _ADD_OFFSET_SQL = """
+  INSERT OR REPLACE INTO Offsets(VideoFileHash, AudioFileHash, Offset)
+    VALUES(?, ?, ?)
+  """
+
+  _GET_OFFSET_SQL = """
+  SELECT Offset
+  FROM Offsets
+  WHERE VideoFileHash = ? AND AudioFileHash = ?
+  """
   
   def __init__(self, path, overwrite=False):
     self._con = self._open_db(path, overwrite)
     self._con.text_factory = str
 
   def _add_offset(self, video_hash, audio_hash, offset):
-    results = self._con.execute(_ADD_OFFSET_SQL, (video_hash, audio_hash, offset))
+    results = self._con.execute(
+      _ADD_OFFSET_SQL, (video_hash, audio_hash, offset))
     self._con.commit()
 
   def _get_offset(self, video_hash, audio_hash):
-    results = self._con.execute(_GET_OFFSET_SQL, (video_hash, audio_hash)).fetchone()
+    results = self._con.execute(
+      _GET_OFFSET_SQL, (video_hash, audio_hash)).fetchone()
     if results:
       return results[0]
     else:
@@ -159,7 +165,9 @@ class LocalRiffDatabase(RiffDatabase):
     else:
       return handle
 
+
 def GetRiffDatabase(force_local=False):
+  """Return a remote database if possible, or a local db otherwise."""
   if force_local:
     return LocalRiffDatabase(DEFAULT_DB_FILE)
   try:

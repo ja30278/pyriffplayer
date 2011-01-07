@@ -24,7 +24,7 @@ FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR
 OTHER DEALINGS IN THE SOFTWARE.
 """
 
-__version__ = '0.2'
+__version__ = '0.3'
 GPL = __doc__
 
 import logging
@@ -53,6 +53,7 @@ class AudioFrame(wx.Frame):
     wx.Frame.__init__(self, parent, wx.ID_ANY, title)
 
 class RiffPlayerFrame(wx.Frame):
+  """The main riffplayer frame."""
 
   def __init__(self, parent, title):
     """Initialize the main riff player frame."""
@@ -72,6 +73,7 @@ class RiffPlayerFrame(wx.Frame):
     self._InitMenu()
 
   def _InitResources(self):
+    """Initialize image resources."""
     self.bmp = {
       'play': wx.Bitmap(os.path.join(RES_DIR, 'media-playback-start.png')),
       'pause': wx.Bitmap(os.path.join(RES_DIR, 'media-playback-pause.png')),
@@ -86,6 +88,7 @@ class RiffPlayerFrame(wx.Frame):
      }
 
   def _InitControls(self):
+    """Build the visible controls."""
     # The main video panel, defaulted to a black background
     self.video = wx.media.MediaCtrl(self)
     self.video.SetBackgroundColour('#000000')
@@ -197,6 +200,7 @@ class RiffPlayerFrame(wx.Frame):
 
 
   def _InitMenu(self):
+    """Init the OS menu."""
     self.menu_bar = wx.MenuBar()
     self.file_menu = wx.Menu()
     self.control_menu = wx.Menu()
@@ -242,6 +246,7 @@ class RiffPlayerFrame(wx.Frame):
 
 
   def Play(self):
+    """Start playback."""
     self.play_button.SetBitmapLabel(self.bmp['pause'])
     self.video.Play()
     self.riff.Play()
@@ -252,11 +257,13 @@ class RiffPlayerFrame(wx.Frame):
       logging.error('Error setting slider max values: %s', e)
 
   def Pause(self):
+    """Pause playback."""
     self.play_button.SetBitmapLabel(self.bmp['play'])
     self.video.Pause()
     self.riff.Pause()
 
   def Stop(self):
+    """Stop playback."""
     self.play_button.SetBitmapLabel(self.bmp['play'])
     self.video_slider.SetValue(0)
     self.riff_slider.SetValue(0)
@@ -312,7 +319,6 @@ class RiffPlayerFrame(wx.Frame):
     self.riff_file = self._ChooseFile(filter=RIFF_FILE_FILTER)
     self.riff.Load(self.riff_file)
     logging.debug('Riff file: %s', self.riff_file)
-    self.play_button.Enable()
     self._LoadOffset()
     self._ApplyOffset()
   
@@ -322,7 +328,6 @@ class RiffPlayerFrame(wx.Frame):
     self.video_file = self._ChooseFile(filter=VIDEO_FILE_FILTER)
     self.video.Load(self.video_file)
     logging.debug('Video file: %s', self.video_file)
-    self.play_button.Enable()
     self._LoadOffset()
     self._ApplyOffset()
 
@@ -376,7 +381,7 @@ class RiffPlayerFrame(wx.Frame):
 
   def _ApplyOffset(self):
     """Apply current offset if required."""
-    if not self.synced or None in (self.video_file, self.riff_file):
+    if not self.synced or None in (self.video, self.riff):
       return
     try:
       vid_position_milli = self.video.Tell()
@@ -404,39 +409,44 @@ class RiffPlayerFrame(wx.Frame):
     if self.synced:
       self.sync_button.SetBitmapLabel(self.bmp['locked'])
       self.SetOffset(self._CalculateOffset())
-      self.riff_slider.Disable()
-      if self.db:
-        self.save_offset_button.Enable()
     else:
       self.sync_button.SetBitmapLabel(self.bmp['unlocked'])
-      self.riff_slider.Enable()
 
   def OnIdle(self, event):
     """Event handler for the Idle task.
     
     Used to update non-gui background processes
     """
-    if not int(time.time()) % 10:
+    if not int(time.time()) % 5:
       self._ApplyOffset()
 
   def OnUpdateUI(self, event):
     """Event handler for the EVT_UPDATE_UI psuedo-signal."""
     self.offset_button.SetLabel('Offset: %s' % self.offset)
+    if self.video_file and self.riff_file:
+      self.play_button.Enable()
+    else:
+      self.play_button.Disable()
     if self.synced:
       self.sync_button.SetBitmapLabel(self.bmp['locked'])
       self.riff_slider.Disable()
+      if self.db:
+        self.save_offset_button.Enable()
     else:
       self.sync_button.SetBitmapLabel(self.bmp['unlocked'])
       self.riff_slider.Enable()
+      self.save_offset_button.Disable()
     try:
       vid_duration_milli = self.video.Length()
       vid_position_milli = self.video.Tell()
       riff_duration_milli = self.riff.Length()
       riff_position_milli = self.riff.Tell()
-      self.video_timer.SetLabel(self._FormatTimestamp(vid_position_milli))
-      self.video_slider.SetValue(vid_position_milli)
-      self.riff_timer.SetLabel(self._FormatTimestamp(riff_position_milli))
-      self.riff_slider.SetValue(riff_position_milli)
+      if vid_position_milli >= 0:
+        self.video_timer.SetLabel(self._FormatTimestamp(vid_position_milli))
+        self.video_slider.SetValue(vid_position_milli)
+      if riff_position_milli >= 0:
+        self.riff_timer.SetLabel(self._FormatTimestamp(riff_position_milli))
+        self.riff_slider.SetValue(riff_position_milli)
     except Exception, e:
       logging.error('Error encountered obtaining postion/duration: %s', e)
       return
@@ -450,7 +460,7 @@ class RiffPlayerFrame(wx.Frame):
     A media player capable of playing and synchonizing a second audio track, as well
     as saving and automatically loading synchronization info.
     """
-    info.WebSite = ('http://github.com/ja30278/pyriffplayer', 'Source repository')
+    info.WebSite = ('http://www.openriff.com', 'openriff website')
     info.Developers = ['Jon Allie (jon@jonallie.com)']
     info.License = GPL
     wx.AboutBox(info)
