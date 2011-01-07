@@ -40,7 +40,6 @@ import db_lib
 RIFF_FILE_FILTER = 'MP3 Files (*.mp3)|*.mp3|AAC Files (*.aac)|*.aac'
 VIDEO_FILE_FILTER = '*.*'
 
-DEFAULT_DB_FILE = 'riffdb.sqlite'
 RES_DIR = 'res'
 
 # Sizing related constants
@@ -63,7 +62,6 @@ class RiffPlayerFrame(wx.Frame):
 
     self.video_file = None
     self.riff_file = None
-    self.db_file = None
     self.db = None
     self.synced = False
     self.offset = 0
@@ -204,9 +202,9 @@ class RiffPlayerFrame(wx.Frame):
     self.control_menu = wx.Menu()
     self.tools_menu = wx.Menu()
 
-    self.menu_video_select = wx.MenuItem(self.file_menu, wx.ID_ANY, 'Select &Video')
-    self.menu_riff_select = wx.MenuItem(self.file_menu, wx.ID_ANY, '&Riff')
-    self.menu_db_select = wx.MenuItem(self.file_menu, wx.ID_ANY, '&Database')
+    self.menu_video_select = wx.MenuItem(self.file_menu, wx.ID_ANY, 'Open &Video')
+    self.menu_riff_select = wx.MenuItem(self.file_menu, wx.ID_ANY, 'Open &Riff')
+    self.menu_db_select = wx.MenuItem(self.file_menu, wx.ID_ANY, 'Open &Database')
     self.file_menu.AppendItem(self.menu_video_select)
     self.file_menu.AppendItem(self.menu_riff_select)
     self.file_menu.AppendItem(self.menu_db_select)
@@ -334,14 +332,15 @@ class RiffPlayerFrame(wx.Frame):
     db_file = self._ChooseFile(mode=wx.SAVE)
     if db_file is None:
       return
-    self.SetDbFile(db_file)
-
-  def SetDbFile(self, filename):
-    self.db_file = filename
     try:
-      self.db = db_lib.RiffDatabase(self.db_file)
+      db = db_lib.LocalRiffDatabase(db_file)
+      self.SetDb(db)
     except db_lib.OperationError, e:
       self._ErrorMsg('Error opening riff database: %s' % e)
+      return
+
+  def SetDb(self, db):
+    self.db = db
     self._LoadOffset()
     self._ApplyOffset()
 
@@ -368,7 +367,7 @@ class RiffPlayerFrame(wx.Frame):
 
   def _LoadOffset(self):
     """Attempt to load offset for current files from db."""
-    if None in (self.video_file, self.riff_file, self.db_file):
+    if None in (self.video_file, self.riff_file, self.db):
       return
     offset = self.db.get_offset(self.video_file, self.riff_file)
     if offset is not None:
@@ -393,7 +392,7 @@ class RiffPlayerFrame(wx.Frame):
     
   def OnSaveOffset(self, event):
     """Event handler for saving offset value."""
-    if None in (self.video_file, self.riff_file, self.db_file):
+    if None in (self.video_file, self.riff_file, self.db):
       self._ErrorMsg('Unable to save offset')
       return
     self.db.add_offset(self.video_file, self.riff_file, self.offset)
@@ -406,7 +405,7 @@ class RiffPlayerFrame(wx.Frame):
       self.sync_button.SetBitmapLabel(self.bmp['locked'])
       self.SetOffset(self._CalculateOffset())
       self.riff_slider.Disable()
-      if self.db_file:
+      if self.db:
         self.save_offset_button.Enable()
     else:
       self.sync_button.SetBitmapLabel(self.bmp['unlocked'])
@@ -444,7 +443,7 @@ class RiffPlayerFrame(wx.Frame):
 
   def OnAbout(self, event):
     info = wx.AboutDialogInfo()
-    info.Name = 'pyRiffplayer, a syncing media player'
+    info.Name = 'OpenRiff Player, a syncing media player'
     info.Version = __version__
     info.Copyright = 'Copyright 2008, Jon Allie (jon@jonallie.com)'
     info.Description = """
@@ -526,15 +525,18 @@ class RiffPlayer(wx.App):
   """The riffplayer app class."""
 
   def OnInit(self):
-    frame = RiffPlayerFrame(None, title='Riff Player')
-    frame.SetDbFile(DEFAULT_DB_FILE)
-    frame.Show(True)
-    frame.Centre()
+    self.frame = RiffPlayerFrame(None, title='Riff Player')
+    self.frame.Show(True)
+    self.frame.Centre()
 
     return True
+
+  def SetDb(self, db):
+    self.frame.SetDb(db)
 
 if __name__ == '__main__':
   logging.basicConfig(level=logging.DEBUG)
   app = RiffPlayer(0)
+  app.SetDb(db_lib.GetRiffDatabase())
   app.MainLoop()
     
