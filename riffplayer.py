@@ -428,25 +428,29 @@ class RiffPlayerFrame(wx.Frame):
     else:
       self.play_button.Disable()
     if self.synced:
-      self.sync_button.SetBitmapLabel(self.bmp['locked'])
       self.riff_slider.Disable()
       if self.db:
         self.save_offset_button.Enable()
     else:
-      self.sync_button.SetBitmapLabel(self.bmp['unlocked'])
       self.riff_slider.Enable()
       self.save_offset_button.Disable()
     try:
-      vid_duration_milli = self.video.Length()
       vid_position_milli = self.video.Tell()
-      riff_duration_milli = self.riff.Length()
       riff_position_milli = self.riff.Tell()
       if vid_position_milli >= 0:
-        self.video_timer.SetLabel(self._FormatTimestamp(vid_position_milli))
-        self.video_slider.SetValue(vid_position_milli)
+        # blindly redrawing the labels on each update causes funky flashing
+        # in windows
+        new_label = self._FormatTimestamp(vid_position_milli)
+        old_label = self.video_timer.GetLabel()
+        if new_label != old_label:
+          self.video_timer.SetLabel(new_label)
+          self.video_slider.SetValue(vid_position_milli)
       if riff_position_milli >= 0:
-        self.riff_timer.SetLabel(self._FormatTimestamp(riff_position_milli))
-        self.riff_slider.SetValue(riff_position_milli)
+        new_label = self._FormatTimestamp(vid_position_milli)
+        old_label = self.riff_timer.GetLabel()
+        if new_label != old_label:
+          self.riff_timer.SetLabel(self._FormatTimestamp(riff_position_milli))
+          self.riff_slider.SetValue(riff_position_milli)
     except Exception, e:
       logging.error('Error encountered obtaining postion/duration: %s', e)
       return
